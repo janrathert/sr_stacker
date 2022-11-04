@@ -1,4 +1,4 @@
-all: find_needle simple_stacker read_raw select_star art_pre imgzoom sirt drizzle cg stacks_to_ppm process_flat debayer
+all:  simple_stacker read_raw select_star  imgzoom drizzle cg stacks_to_ppm process_flat debayer scale_pgm cg_deconvol
 #  sobel read_raw debayer imgzoom img_diff_matrix find_needle
 
 sobel: sobel.c circle.c gauss_jordan.c image_match.c
@@ -7,8 +7,17 @@ sobel: sobel.c circle.c gauss_jordan.c image_match.c
 read_raw: read_raw.c showpic.c
 	gcc read_raw.c showpic.c -I/usr/include/SDL -lSDL -lX11 -o readraw
 
-select_star: select_star.c track_star.c image_match.c
-	gcc  select_star.c track_star.c image_match.c -I/usr/include/SDL -lSDL -lX11 -lm -o select_star
+select_star: select_star.c track_star.c image_match.c part4_star_centroid.c normalize_u16.o otsu_u16.o
+	gcc  select_star.c track_star.c image_match.c part4_star_centroid.c normalize_u16.o otsu_u16.o -I/usr/include/SDL2 -lSDL2 -lX11 -lm -o select_star
+
+normalize_u16.o: normalize.c
+	gcc -c -Dvaltype=uint16_t normalize.c -o normalize_u16.o
+
+otsu_u16.o: otsu.c
+	gcc -c -Dvaltype=uint16_t otsu.c -o otsu_u16.o
+
+normalize_double.o: normalize.c
+	gcc -c -Dvaltype=double normalize.c -o normalize_double.o
 
 debayer: debayer.c
 	gcc -O2 debayer.c -o debayer
@@ -31,14 +40,14 @@ process_flat: process_flat.c
 stacks_to_ppm: stacks_to_ppm.c 
 	gcc -O2 stacks_to_ppm.c  -o stacks_to_ppm
 
-art_pre: art_pre.c 
-	gcc -O0 -g art_pre.c  -o art_pre
-
 sirt: sirt.c  gauss_distribution.c sphere_transform.c
 	gcc -O2  -Dfilter_size=3 -DSIRT sirt.c gauss_distribution.c sphere_transform.c -lm  -o sirt
 
-drizzle: drizzle.c  gauss_distribution.c sphere_transform.c
-	gcc -O2  -Dfilter_size=3 drizzle.c gauss_distribution.c sphere_transform.c -lm  -o drizzle
+drizzle: drizzle.c  gauss_distribution.c sphere_transform.c normalize_double.o Makefile
+	gcc -O2  -Dfilter_size=3 drizzle.c gauss_distribution.c sphere_transform.c normalize_double.o -lm  -o drizzle
 
 cg: sirt.c  gauss_distribution.c dct.c sphere_transform.c
-	gcc -O2 -Dfilter_size=13 -DCG sirt.c gauss_distribution.c dct.c sphere_transform.c -lm  -o cg
+	gcc -O2 -Dfilter_size=45 -DCG sirt.c gauss_distribution.c dct.c sphere_transform.c -lm  -o cg
+
+cg_deconvol: cg_deconvol.c  gauss_distribution.c 
+	gcc -O2 cg_deconvol.c gauss_distribution.c -lm  -o cg_deconvol

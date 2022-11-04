@@ -1,12 +1,11 @@
-
 #include <stdio.h>
 #include <math.h>
-#include <strings.h>
+#include "image_match.h"
 
 int max_pixelvalue = 255;
 int max_x = 0;
 int max_y = 0;
-
+/*
 unsigned short getpixel_ushort( unsigned short *v , int w , int h , int x , int y )
 {
 	if( y < 0 || x < 0 || x >= w || y >= h ) 
@@ -21,7 +20,8 @@ unsigned int getpixel_uint( unsigned int *v , int w , int h , int x , int y )
 		return 0;
 	v += w*y+x;
 	return *v;
-}
+} 
+*/
 
 
 unsigned short* read_pgm(  int *w , int *h,  const char *fname , int *x_offset , int *y_offset )
@@ -62,10 +62,8 @@ unsigned short* read_pgm(  int *w , int *h,  const char *fname , int *x_offset ,
 		max_x = w_;
 		max_y = h_;
 	}
-	printf("line = %s\n",line);
 	fgets(line,sizeof(line),f);
 	sscanf(line,"%d",&max);
-	printf("line = %s\n",line);
 	max_pixelvalue = max;
 	r = malloc( w_ * h_ * sizeof(short) );
 	for(i=0;i<croph*(2*cropw+w_);i++) {
@@ -101,35 +99,12 @@ unsigned short* read_pgm(  int *w , int *h,  const char *fname , int *x_offset ,
 	return r;
 }
 
-void write_pgm( float *out_img , int w , int h , char *fname , int inv )
-{
-	FILE *f;
-	int x,y;
-	f = fopen(fname,"w");
-	fprintf(f,"P5\n%d %d\n%d\n",w,h,max_pixelvalue);
-	for(y=0;y<h;y+=1)
-		for(x=0;x<w;x+=1) {
-			int value =  out_img[y*w+x] ;
-			if( value < 0 )
-				value = 0;
-			if( value > max_pixelvalue )
-				value = max_pixelvalue;
-			if( inv )
-				value = max_pixelvalue - value;
-			if( max_pixelvalue > 255 )
-				fputc( value/256 , f);
-			fputc( value&255 , f);
-		}
-	fclose(f);
-}
-
-
 void write_pgm_ushort( unsigned short *out_img , int w , int h , char *fname , int x_ , int y_ , int w_ , int h_   )
 {
 	FILE *f;
 	int x,y;
 	f = fopen(fname,"w");
-	fprintf(f,"P5\n%d %d\n%d\n",w_,h_,max_pixelvalue);
+	fprintf(f,"P5\n#offset %d %d\n%d %d\n%d\n",x_,y_,w_,h_,max_pixelvalue);
 	for(y=y_;y<y_+h_;y+=1)
 		for(x=x_;x<x_+w_;x+=1) {
 			int value =  out_img[y*w+x]  ;
@@ -144,80 +119,27 @@ void write_pgm_ushort( unsigned short *out_img , int w , int h , char *fname , i
 	fclose(f);
 }
 
-
-void write_pgm_stack( int *out_img , int w , int h , char *fname , int count , int dx , int dy  )
+int main(int argc,char **argv )
 {
-	FILE *f;
-	int x,y;
-	if(!count)
-		return;
-	f = fopen(fname,"w");
-	fprintf(f,"P5\n%d %d\n%d\n",w,h,max_pixelvalue);
-	for(y=0;y<h;y+=1)
-		for(x=0;x<w;x+=1) {
-			int value = getpixel_uint( out_img ,w ,h , x+dx,y+dy ) / count  ;
-			if( value < 0 )
-				value = 0;
-			if( value > max_pixelvalue )
-				value = max_pixelvalue;
-			if( max_pixelvalue > 255 )
-				fputc( value/256 , f);
-			fputc( value&255 , f);
-		}
-	fclose(f);
-}
-
-
-
-int main(int argc,char **argv)
-{
-	char line[1024];
-	FILE *f;
-	int xo0,yo0;
-	unsigned int *s = NULL;
+	unsigned short *p;
+	unsigned short *q;
+	long long diff;
 	int w,h;
-	int stack_count = 0;
-	char *p;
-	char fname[1024];
-	strcpy(fname,argv[1] );
-	p = rindex(fname,'_');
-	if(!p)
-		exit(1);
-	strcpy(p,"_stack.pgm");
-	f = fopen(argv[1],"r");
-	while(!feof(f) ) {
-		int xo,yo;
-		float xo_,yo_;
-		long long diff;
-		char fname[1024];
-		char line[1024];
-		if(!fgets(line,1024,f))
-			break;
-		if( line[0] == '#' )
-			continue;
-		if(sscanf(line,"%s %f %f %lld",fname,&xo_,&yo_,&diff) != 4 )
-			break;	
-		printf("diff = %lld\n",diff );
-		xo = xo_;
-		yo = yo_;
-		unsigned short *p = read_pgm(&w,&h,fname , NULL , NULL );
-		if(!s) {
-			s = malloc(w*h*sizeof(int) );
-			memset(s,0,w*h*sizeof(int) );
-			xo0 = xo;
-			yo0 = yo;
-		}
-		if(diff < 600779008) {
-				int x,y;
-				for(y=0;y<h;y+=1) {
-					for(x=0;x<w;x+=1) {
-						s[y*w+x] += getpixel_ushort( p , w,h, x+xo-xo0,y+yo-yo0 );
-					}
-				}
-				
-				stack_count++;
-		}
+	int wn,hn;
+	int xmatch,ymatch,xmatch_sub,ymatch_sub;
+	int i;
+	p = read_pgm(&wn,&hn,argv[1],NULL,NULL); // needle
+
+	for( i=2;i<argc;i++) {
+		char fname[256];
+		q = read_pgm(&w,&h,argv[i],NULL,NULL); // haystack
+		diff = best_image_match( p , q , wn , hn , w, h ,  &xmatch, &ymatch  );
+
+		fprintf(stderr,"diff = %lld %s\n",diff,argv[i]);
+		printf("%s %d %d %lld\n",argv[i],xmatch,ymatch, diff );
+		sprintf(fname,"match_%s",argv[i] );
+		write_pgm_ushort( q,w,h,fname , xmatch,ymatch,wn,hn );
 	}
-	printf("stack_count = %d w=%d h=%d\n",stack_count ,w ,h  );
-	write_pgm_stack(s,w,h,fname,stack_count , 0 , 0 );
+
 }
+

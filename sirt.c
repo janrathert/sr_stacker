@@ -15,8 +15,11 @@ float gauss_width = 1;
 float square_width = 0;
 
 int focus = 0;
+int psf = 0;
 
 int blacklevel = 0;
+
+int maxdiff = 0;
 
 // static int img_xo[100];
 // static int img_yo[100];
@@ -216,6 +219,39 @@ static void gen_fp_rect( int k , float x0 , float y0 , float ro )
 	
 	normalize(k);
 }
+
+
+static void gen_fp_psf( int k , float x0 , float y0  )
+{
+	int i;
+	int j;
+	FILE *f;
+	float v[100];
+	float black;
+	f = fopen("psf.txt","r");
+	for(i=0;i<100;i++) {
+		float x;
+		if( fscanf(f,"%f %f",&x,&v[i] ) != 2 ) 
+			break;
+		black = v[i];
+	}
+	for(i=0;i<filter_size;i++) {
+		for(j=0;j<filter_size;j++) {
+			float x = j-filter_size/2; 
+			float y = i-filter_size/2; 
+			int r2 = floor(  sqrt( x*x + y*y )*2 + 0.5 );
+			if( r2>filter_size )
+				fp_[k][i][j] = 0 ; 
+			else
+				fp_[k][i][j] = v[r2] - black ; 
+		}
+	}
+	fclose(f);
+	
+	normalize(k);
+}
+
+
 
 
 
@@ -484,6 +520,9 @@ int main( int argc , char **argv )
 
 			square_width = atof(argv[1] );
 		}
+		if( strcmp(argv[1] , "-psf" ) == 0 ) {
+			psf = 1;
+		}
 		if( strcmp(argv[1] , "-lambda" ) == 0 ) {
 			argv++;
 			argc--;
@@ -499,6 +538,11 @@ int main( int argc , char **argv )
 		if( strcmp(argv[1] , "-reverse" ) == 0 ) {
 			reverse = 1;
 		}
+		if( strcmp(argv[1] , "-maxdiff" ) == 0 ) {
+			argv++;
+			argc--;
+			maxdiff = atoi( argv[1] );
+		}
 		argv++;
 		argc--;
 	}
@@ -510,7 +554,9 @@ int main( int argc , char **argv )
 	{ int dx,dy;
 	  for(dy=0;dy<100;dy++) {
 		for(dx=0;dx<100;dx++) {
-			if(square_width)
+			if(psf)
+				gen_fp_psf( dy*100+dx , dx/100.0  , dy/100.0  );		
+			else if(square_width)
 				gen_fp_rect( dy*100+dx , dx/100.0  , dy/100.0  , square_width/2.0  );	
 			else
 				gen_fp_gauss( dy*100+dx , dx/100.0  , dy/100.0  ,  gauss_width  );	
@@ -560,6 +606,8 @@ int main( int argc , char **argv )
 		ret =  sscanf(line,"%s %f %f %lld %f %f %lld %f %f %lld",m->fname,&m->x1,&m->y1,&m->diff1,&m->x2,&m->y2,&m->diff2,&m->x3,&m->y3,&m->diff3);
 		if( ret < 4 ) 
 			break;
+		if( maxdiff && m->diff1 >= maxdiff )
+			continue;
 		strcpy(fname,m->fname);
 		if( channel ) {
 			char *p = rindex(fname,'_');
@@ -629,7 +677,7 @@ int main( int argc , char **argv )
 	if( reverse )
 		exit(0);
 	threshold = 0; //  max_pixelvalue * 0.001;
-	threshold2 =  max_pixelvalue * 0.001;
+	threshold2 = max_pixelvalue * 0.001;
 	w_ = zoom*w;
 	h_ = zoom*h;
 	X = malloc(w_*h_*sizeof(valtype) );

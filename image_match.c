@@ -104,8 +104,8 @@ long long image_diff( unsigned short *img1 , unsigned short *img2 , int w1,int h
 	for(i=0;i<cmp_h;i++) {
 		int j;
 		for(j=0;j<cmp_w;j++) {
-			long long d = (*img1++) - (((*img2++)*(long long)avg2))/avg1;
-			// long long d = (*img1++) - (*img2++);
+			// long long d = (*img1++) - (((*img2++)*(long long)avg2))/avg1;
+			long long d = (*img1++) - (*img2++);
 			diff += d*d;
 		}
 		img1 += w1 - cmp_w;
@@ -167,8 +167,8 @@ long long image_diff_subpixel( unsigned short *img1 , unsigned short *img2 , int
 			int v2;
 			v1 = getpixel_ushort(img1,w,h,x1+j,y1+i,0,0);
 			v2 = getpixel_ushort(img2,w,h,x2+j,y2+i,x2_sub,y2_sub);
-			long long d = v2-(v1*(long long)avg2)/avg1 ;
-			// long long d = v2-v1 ;
+			// long long d = v2-(v1*(long long)avg2)/avg1 ;
+			long long d = v2-v1 ;
 			diff += d*d;
 		}
 	}

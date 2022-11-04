@@ -145,79 +145,31 @@ void write_pgm_ushort( unsigned short *out_img , int w , int h , char *fname , i
 }
 
 
-void write_pgm_stack( int *out_img , int w , int h , char *fname , int count , int dx , int dy  )
-{
-	FILE *f;
-	int x,y;
-	if(!count)
-		return;
-	f = fopen(fname,"w");
-	fprintf(f,"P5\n%d %d\n%d\n",w,h,max_pixelvalue);
-	for(y=0;y<h;y+=1)
-		for(x=0;x<w;x+=1) {
-			int value = getpixel_uint( out_img ,w ,h , x+dx,y+dy ) / count  ;
-			if( value < 0 )
-				value = 0;
-			if( value > max_pixelvalue )
-				value = max_pixelvalue;
-			if( max_pixelvalue > 255 )
-				fputc( value/256 , f);
-			fputc( value&255 , f);
-		}
-	fclose(f);
-}
-
 
 
 int main(int argc,char **argv)
 {
-	char line[1024];
-	FILE *f;
-	int xo0,yo0;
-	unsigned int *s = NULL;
 	int w,h;
-	int stack_count = 0;
-	char *p;
-	char fname[1024];
-	strcpy(fname,argv[1] );
-	p = rindex(fname,'_');
-	if(!p)
-		exit(1);
-	strcpy(p,"_stack.pgm");
-	f = fopen(argv[1],"r");
-	while(!feof(f) ) {
-		int xo,yo;
-		float xo_,yo_;
-		long long diff;
-		char fname[1024];
-		char line[1024];
-		if(!fgets(line,1024,f))
-			break;
-		if( line[0] == '#' )
-			continue;
-		if(sscanf(line,"%s %f %f %lld",fname,&xo_,&yo_,&diff) != 4 )
-			break;	
-		printf("diff = %lld\n",diff );
-		xo = xo_;
-		yo = yo_;
-		unsigned short *p = read_pgm(&w,&h,fname , NULL , NULL );
-		if(!s) {
-			s = malloc(w*h*sizeof(int) );
-			memset(s,0,w*h*sizeof(int) );
-			xo0 = xo;
-			yo0 = yo;
-		}
-		if(diff < 600779008) {
-				int x,y;
-				for(y=0;y<h;y+=1) {
-					for(x=0;x<w;x+=1) {
-						s[y*w+x] += getpixel_ushort( p , w,h, x+xo-xo0,y+yo-yo0 );
-					}
-				}
-				
-				stack_count++;
-		}
+	int i;
+	int black;
+	int scale;
+	unsigned short *p = read_pgm(&w,&h,argv[1] , NULL , NULL );
+	black = atoi(argv[2]);
+	scale = atoi(argv[3]);
+	printf("black = %d\n",black);
+	printf("scale = %d\n",scale);
+	for(i=0;i<w*h;i++) {
+		int val = p[i];
+		if( val >= black )
+			val -= black;
+		else
+			val = 0;
+		if( val < 65535 / scale )
+			val *= scale;
+		else
+			val = 65535;
+		p[i] = val;
 	}
-	printf("stack_count = %d w=%d h=%d\n",stack_count ,w ,h  );
-	write_pgm_stack(s,w,h,fname,stack_count , 0 , 0 );
+	
+	write_pgm_ushort(p,w,h,argv[4] , 0,0,w,h );
 }

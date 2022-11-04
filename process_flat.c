@@ -145,14 +145,14 @@ void write_pgm_ushort( unsigned short *out_img , int w , int h , char *fname , i
 }
 
 
-void write_pgm_stack( int *out_img , int w , int h , char *fname , int count , int dx , int dy  )
+void write_pgm_stack( int *out_img , int w , int h , char *fname , int count , int dx , int dy , int dx_ , int dy_  )
 {
 	FILE *f;
 	int x,y;
 	if(!count)
 		return;
 	f = fopen(fname,"w");
-	fprintf(f,"P5\n%d %d\n%d\n",w,h,max_pixelvalue);
+	fprintf(f,"P5\n#offset %d %d\n%d %d\n%d\n",dx+dx_,dy+dy_,w,h,max_pixelvalue);
 	for(y=0;y<h;y+=1)
 		for(x=0;x<w;x+=1) {
 			int value = getpixel_uint( out_img ,w ,h , x+dx,y+dy ) / count  ;
@@ -173,51 +173,54 @@ int main(int argc,char **argv)
 {
 	char line[1024];
 	FILE *f;
-	int xo0,yo0;
 	unsigned int *s = NULL;
 	int w,h;
+	int i,j;
+	int x,y;
 	int stack_count = 0;
 	char *p;
 	char fname[1024];
-	strcpy(fname,argv[1] );
-	p = rindex(fname,'_');
-	if(!p)
+	int max = 0;
+	int xo=0;
+	int yo=0;
+	int w_,h_;
+	int black_level = 4100;
+	unsigned short *flat = read_pgm(&w_,&h_,argv[1] , NULL , NULL );
+	unsigned short *bias = NULL;
+	if(!flat ) {
+		printf("read error 1\n");
 		exit(1);
-	strcpy(p,"_stack.pgm");
-	f = fopen(argv[1],"r");
-	while(!feof(f) ) {
-		int xo,yo;
-		float xo_,yo_;
-		long long diff;
-		char fname[1024];
-		char line[1024];
-		if(!fgets(line,1024,f))
-			break;
-		if( line[0] == '#' )
-			continue;
-		if(sscanf(line,"%s %f %f %lld",fname,&xo_,&yo_,&diff) != 4 )
-			break;	
-		printf("diff = %lld\n",diff );
-		xo = xo_;
-		yo = yo_;
-		unsigned short *p = read_pgm(&w,&h,fname , NULL , NULL );
-		if(!s) {
-			s = malloc(w*h*sizeof(int) );
-			memset(s,0,w*h*sizeof(int) );
-			xo0 = xo;
-			yo0 = yo;
-		}
-		if(diff < 600779008) {
-				int x,y;
-				for(y=0;y<h;y+=1) {
-					for(x=0;x<w;x+=1) {
-						s[y*w+x] += getpixel_ushort( p , w,h, x+xo-xo0,y+yo-yo0 );
-					}
-				}
-				
-				stack_count++;
-		}
 	}
-	printf("stack_count = %d w=%d h=%d\n",stack_count ,w ,h  );
-	write_pgm_stack(s,w,h,fname,stack_count , 0 , 0 );
+	if( strlen(argv[2])<=5 ) {
+		int v = black_level = atoi(argv[2]);
+		bias = malloc(w_*h_*2);
+		for( j = 0;j<w_*h_;j++) 
+			bias[j] = v;
+	} else bias = read_pgm(&w_,&h_,argv[2] , NULL , NULL );
+	s = malloc(w_*h_*sizeof(int) );
+	argc--;
+	argv++;
+	argc--;
+	argv++;
+	for( j = 0;j<w_*h_;j++) 
+		if(flat[j] > max )
+			max = flat[j];
+	max -= black_level;
+	printf("max = %d\n",max );
+	for( i = 1; i<argc; i++ ) {
+		int j;
+		strcpy(fname,argv[i] );
+		p = rindex(fname,'.');
+		if(!p)
+			exit(1);
+		strcpy(p,"_flat_done.pgm");
+		unsigned short *p = read_pgm(&w,&h,argv[i] , &xo , &yo );
+		printf("xo = %d yo = %d\n",xo,yo );
+		for( y = 0;y<h;y++) 
+			for(x=0;x<w;x++)
+				if( flat[(y+yo)*w_+x+xo] - black_level > 0 ) {
+					s[y*w+x] = 4000 +  ( ( p[y*w+x] - bias[ (y+yo)*w_+x+xo ]  ) *  max ) / ( flat[(y+yo)*w_+x+xo] - black_level );
+				}
+		write_pgm_stack(s,w,h,fname,1 , 0,0,  xo , yo );
+	}
 }

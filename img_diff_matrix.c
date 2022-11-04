@@ -1,7 +1,8 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <strings.h>
+#include "circle.h"
+#include "image_match.h"
 
 int max_pixelvalue = 255;
 int max_x = 0;
@@ -171,53 +172,132 @@ void write_pgm_stack( int *out_img , int w , int h , char *fname , int count , i
 
 int main(int argc,char **argv)
 {
-	char line[1024];
-	FILE *f;
-	int xo0,yo0;
-	unsigned int *s = NULL;
+	int i;
+	int j;
 	int w,h;
 	int stack_count = 0;
-	char *p;
-	char fname[1024];
-	strcpy(fname,argv[1] );
-	p = rindex(fname,'_');
-	if(!p)
-		exit(1);
-	strcpy(p,"_stack.pgm");
-	f = fopen(argv[1],"r");
-	while(!feof(f) ) {
-		int xo,yo;
-		float xo_,yo_;
-		long long diff;
-		char fname[1024];
-		char line[1024];
-		if(!fgets(line,1024,f))
-			break;
-		if( line[0] == '#' )
-			continue;
-		if(sscanf(line,"%s %f %f %lld",fname,&xo_,&yo_,&diff) != 4 )
-			break;	
-		printf("diff = %lld\n",diff );
-		xo = xo_;
-		yo = yo_;
-		unsigned short *p = read_pgm(&w,&h,fname , NULL , NULL );
-		if(!s) {
-			s = malloc(w*h*sizeof(int) );
-			memset(s,0,w*h*sizeof(int) );
-			xo0 = xo;
-			yo0 = yo;
-		}
-		if(diff < 600779008) {
+	static float matrix[100][100];
+	static int count[100];
+	static int x_offset[100];
+	static int y_offset[100];
+	static int xmatch_[100][100];
+	static int ymatch_[100][100];
+	float threshold = atoi(argv[1]);
+	argc--;
+	argv++;
+	for(i=1;i<argc;i++) {
+		int k;
+		unsigned short *p = read_pgm(&w,&h,argv[i] , x_offset+i , y_offset+i );
+		unsigned int *s = malloc(w*h*sizeof(int) );
+		char fname[256];
+		printf("x_offset %d y_offset %d\n",x_offset[i],y_offset[i] );
+		memset( s,0,w*h*sizeof(int) );
+		stack_count = 0;
+		for(j=1;j<argc;j++) {
+			long long diff;
+			unsigned short *q = read_pgm(&w,&h,argv[j] , NULL , NULL );
+			int xmatch,ymatch;
+			diff = best_image_match( p , q , w , h ,w , h , 16 , 16 , 16 , 16 , 32 , 32 , &xmatch, &ymatch );
+			printf("xmatch %d ymatch %d\n",xmatch,ymatch);
+			xmatch_[i][j] = xmatch;
+			ymatch_[i][j] = ymatch;
+			printf("diff %d %d %s %s = %lld\n",i,j,argv[i],argv[j],diff);
+			matrix[i][j] = diff/1000000.0;
+			if( matrix[i][j] < threshold ) {
 				int x,y;
 				for(y=0;y<h;y+=1) {
 					for(x=0;x<w;x+=1) {
-						s[y*w+x] += getpixel_ushort( p , w,h, x+xo-xo0,y+yo-yo0 );
+						s[y*w+x] += getpixel_ushort( q , w,h, x+xmatch-16,y+ymatch-16 );
 					}
 				}
 				
 				stack_count++;
+			}
 		}
+		sscanf(argv[i]+5,"%d",&k);
+		printf("k=%d %s\n",k,argv[i]);
+		sprintf(fname,"stack%04d_%02d.pgm",k,stack_count);
+		unlink(fname);
+		if( stack_count >= 3 )
+			write_pgm_stack(s,w,h,fname,stack_count , 0 , 0 );
+		count[i] = stack_count;
+		free(s);
 	}
-	printf("stack_count = %d w=%d h=%d\n",stack_count ,w ,h  );
-	write_pgm_stack(s,w,h,fname,stack_count , 0 , 0 );
+	for(i=1;i<argc;i++) {
+		int stack_count = 0;
+		for(j=1;j<argc;j++) {
+			printf("%7.3f ",matrix[i][j]);
+
+		}
+		printf("\n");
+	}
+	while(1) {
+		int max=0;
+		char fname[256];
+		int k;
+		unsigned int *s = NULL;
+		stack_count = 0;
+		for(j=1;j<argc;j++) {
+			if( count[j] > max ) {
+				max = count[j];
+				i = j;
+			}
+		}
+		printf("max = %d %d\n",i,max);
+		if(!max)
+			break;
+	
+		for(j=1;j<argc;j++) {
+			if(  matrix[i][j]<threshold) {
+				int l;
+				int x,y;
+				int xmatch = xmatch_[i][j];
+				int ymatch = ymatch_[i][j];
+				int dx,dy;
+				sscanf(argv[j]+5,"%d",&k);
+				printf("k=%d %s\n",k,argv[i]);
+				sprintf(fname,"out_%06d.pgm",k-1);
+				printf("%s ",argv[j]);
+				count[j] = 0;
+				for(l=1;l<argc;l++)
+					matrix[l][j] = threshold;
+				unsigned short *p = read_pgm(&w,&h,fname , NULL , NULL );
+				if(!s) {
+ 					s = malloc(w*h*sizeof(int) );
+					memset(s,0,w*h*sizeof(int) );
+				}
+				printf("x_offset %d\n",x_offset[j]);
+				printf("y_offset %d\n",y_offset[j]);
+				dx = xmatch-16 + x_offset[j] - x_offset[1];
+				dy = ymatch-16 + y_offset[j] - y_offset[1];
+				printf("dx = %d dy = %d\n",dx,dy );
+				for(y=0;y<h;y+=1) {
+					for(x=0;x<w;x+=1) {
+						s[y*w+x] += getpixel_ushort( p , w,h, x+dx, y+dy );
+					}
+				}
+				
+				stack_count++;
+			}
+		}
+		printf("\n");
+		count[i] = 0;
+		if( stack_count >= 3 ) {
+			sprintf(fname,"stack_large_%04d_%02d_00.pgm",i,stack_count);
+			unlink(fname);
+			write_pgm_stack(s,w,h,fname,stack_count , 0,0 );
+			sprintf(fname,"stack_large_%04d_%02d_01.pgm",i,stack_count);
+			unlink(fname);
+			write_pgm_stack(s,w,h,fname,stack_count , 1,0 );
+			sprintf(fname,"stack_large_%04d_%02d_10.pgm",i,stack_count);
+			unlink(fname);
+			write_pgm_stack(s,w,h,fname,stack_count , 0,1 );
+			sprintf(fname,"stack_large_%04d_%02d_11.pgm",i,stack_count);
+			unlink(fname);
+			write_pgm_stack(s,w,h,fname,stack_count , 1,1 );
+		}
+		free(s);
+		s = NULL;
+
+	}
 }

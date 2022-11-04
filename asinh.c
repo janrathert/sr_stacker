@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <math.h>
 #include <strings.h>
@@ -173,51 +172,29 @@ int main(int argc,char **argv)
 {
 	char line[1024];
 	FILE *f;
-	int xo0,yo0;
 	unsigned int *s = NULL;
 	int w,h;
+	int i,j;
+	int x,y;
 	int stack_count = 0;
-	char *p;
 	char fname[1024];
-	strcpy(fname,argv[1] );
-	p = rindex(fname,'_');
-	if(!p)
-		exit(1);
-	strcpy(p,"_stack.pgm");
-	f = fopen(argv[1],"r");
-	while(!feof(f) ) {
-		int xo,yo;
-		float xo_,yo_;
-		long long diff;
-		char fname[1024];
-		char line[1024];
-		if(!fgets(line,1024,f))
-			break;
-		if( line[0] == '#' )
-			continue;
-		if(sscanf(line,"%s %f %f %lld",fname,&xo_,&yo_,&diff) != 4 )
-			break;	
-		printf("diff = %lld\n",diff );
-		xo = xo_;
-		yo = yo_;
-		unsigned short *p = read_pgm(&w,&h,fname , NULL , NULL );
-		if(!s) {
-			s = malloc(w*h*sizeof(int) );
-			memset(s,0,w*h*sizeof(int) );
-			xo0 = xo;
-			yo0 = yo;
-		}
-		if(diff < 600779008) {
-				int x,y;
-				for(y=0;y<h;y+=1) {
-					for(x=0;x<w;x+=1) {
-						s[y*w+x] += getpixel_ushort( p , w,h, x+xo-xo0,y+yo-yo0 );
-					}
-				}
-				
-				stack_count++;
-		}
+	int max = 0;
+	int xo=0;
+	int yo=0;
+	int w_,h_;
+	int black_level = 4100;
+	unsigned short *p = read_pgm(&w_,&h_,argv[1] , NULL , NULL );
+	printf("w = %d h = %d\n",w_,h_ );
+	s = malloc(w_*h_*sizeof(int) );
+	for(i=0;i<w_*h_;i++) {
+		int v = 0;
+		v = p[i]-black_level;
+		if( v<0 )
+			v = 0;
+		s[i] = asinh( v/100.0 ) * 65535 / 10;
+
 	}
-	printf("stack_count = %d w=%d h=%d\n",stack_count ,w ,h  );
-	write_pgm_stack(s,w,h,fname,stack_count , 0 , 0 );
+	write_pgm_stack(s,w_,h_,"out.pgm",1 , 0 , 0 );
 }
+
+

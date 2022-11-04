@@ -5,6 +5,9 @@
 #include <utime.h>
 #include "showpic.h"
 
+
+// hq camera chip size 6.287mm x 4.712mm
+
 unsigned int img[3056][4056] = { 0 };
 	int rgb=0;
 	int max = 65535;
@@ -13,8 +16,8 @@ unsigned int img[3056][4056] = { 0 };
 	int flip=0;
 	int xmin=0;
 	int ymin=0;
-	int xmax=2028;
-	int ymax=1528;
+	int xmax=0;
+	int ymax=0;
 	int x_maxval;
 	int y_maxval;
 	int zoom=0;
@@ -155,8 +158,10 @@ int read_raw( const char *fname )
 		fseek(f,12+16,SEEK_CUR);
 		h--;
 	}
+	if( xmax == 0 ) {
 		xmax=w/2;
 		ymax=h/2;
+	}
 		raw_xo = w/4;
 		raw_yo = (3040-h)/2;
 	raw_w = w;

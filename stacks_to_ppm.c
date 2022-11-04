@@ -70,7 +70,7 @@ unsigned short* read_pgm(  int *w , int *h,  const char *fname , int *x_offset ,
 	sscanf(line,"%d",&max);
 	printf("line = %s\n",line);
 	max_pixelvalue = max;
-	r = malloc( w_ * h_ * sizeof(short) );
+	r = malloc( w_ * (h_+5) * sizeof(short) );
 	for(i=0;i<croph*(2*cropw+w_);i++) {
 		if( max > 255 )
 			fgetc(f);
@@ -88,7 +88,7 @@ unsigned short* read_pgm(  int *w , int *h,  const char *fname , int *x_offset ,
 			if( max > 255 )
 				p1 = fgetc(f);
 			unsigned char p2 = fgetc(f);
-			r[k] = v = ( ( p1*256 + p2 ) - 4100 ) * scale_  ;
+			r[k] = v = ( ( p1*256 + p2 ) - 4130 ) * scale_  ;
 			if( v <  0)
 				r[k] = 0;
 			if( v > max_pixelvalue ) {
@@ -193,10 +193,18 @@ int main(int argc,char **argv)
 	unsigned short *img[3];
 	int max[3] = {0};
 	strcpy(fname,argv[4] );
+	int ox[] = {0,0,0};
+	int oy[] = {0,0,0};
 	if( argc >= 8 ) {
 		scale[0] = atoi( argv[5] );
 		scale[1] = atoi( argv[6] );
 		scale[2] = atoi( argv[7] );
+	}
+	if( argc >= 12 ) {	
+		ox[1] = atoi(argv[8]);
+		oy[1] = atoi(argv[9]);
+		ox[2] = atoi(argv[10]);
+		oy[2] = atoi(argv[11]);
 	}
 	argc--;
 	argv++;
@@ -204,6 +212,7 @@ int main(int argc,char **argv)
 		scale_ = scale[i];
 	
 		unsigned short *p = read_pgm(&w,&h,argv[i] , NULL , NULL );
+		p += w*i;
 		img[i] = p;
 		if(!s) {
 			s = malloc(w*h*sizeof(short)*3 );
@@ -214,7 +223,7 @@ int main(int argc,char **argv)
 				int x,y;
 				for(y=0;y<h;y+=1) {
 					for(x=0;x<w;x+=1) {
-						s[(y*w+x)*3+i] = getpixel_ushort( p , w,h, x,y );
+						s[(y*w+x)*3+i] = getpixel_ushort( p , w,h, x+ox[i],y+oy[i] );
 						if(  s[(y*w+x)*3+i] > max[i] )
 							max[i] = s[(y*w+x)*3+i] ;
 					}
