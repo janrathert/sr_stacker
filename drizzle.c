@@ -5,7 +5,6 @@
 #include <math.h>
 #include "gauss_distribution.h"
 #include "sphere_transform.h"
-#include "dct.h"
 
 typedef double valtype;
 #include "normalize.h"

@@ -75,13 +75,11 @@ im2 = np.array(Image.open(sys.argv[2]))
 
 window1d = np.abs(np.hanning(im1.shape[0]))
 window2d = np.sqrt(np.outer(window1d,window1d))
-window1d_2 = np.abs(np.hanning(im2.shape[0]))
-window2d_2 = np.sqrt(np.outer(window1d_2,window1d_2))
 
 # im1 = im1 + gen_whitenoise( im1.shape , 500 )
 # im2 = im2 + gen_whitenoise( im2.shape , 500 )
 im1 = window2d * im1;
-im2 = window2d_2 * im2;
+im2 = window2d * im2;
 
 # pad1 = (im1.shape[0]*2 - im1.shape[0])/2
 # pad2 = (im1.shape[0]*2 - im1.shape[0])-pad1
@@ -100,9 +98,6 @@ img1_fs = np.fft.fft2(im1)
 img2_fs = np.fft.fft2(im2)
 img1_fs =  np.fft.fftshift(img1_fs)
 img2_fs =  np.fft.fftshift(img2_fs) 
-img1_fs = img1_fs[img1_fs.shape[0]/2-img2_fs.shape[0]/2:img1_fs.shape[0]/2+img2_fs.shape[0]/2,img1_fs.shape[1]/2-img2_fs.shape[1]/2:img1_fs.shape[1]/2+img2_fs.shape[1]/2]
-img1_fs = img1_fs  * bandpass 
-img2_fs = img2_fs  * bandpass 
 
 diff = np.sqrt( np.sum( np.power( np.abs(img1_fs)-np.abs(img2_fs) , 2 ) ) / (img1_fs.shape[0]*img1_fs.shape[1]) ).astype(np.int32)
 img1_fs = img1_fs + gen_whitenoise_complex( img1_fs.shape , 5000 )
@@ -130,7 +125,7 @@ for i in range(0,cross_abs.shape[0]) :
 		if cross_abs[i,j] > threshold : 
 			cross_power_spectrum[i,j] = cross_complex[i,j]/cross_abs[i,j]
 
-# cross_power_spectrum = cross_power_spectrum  * bandpass 
+cross_power_spectrum = cross_power_spectrum  * bandpass 
 
 r = np.zeros( ( cross_power_spectrum.shape[0], cross_power_spectrum.shape[1] , 3 ) , np.uint8 )
 for y in range(0,r.shape[0]) :
@@ -145,7 +140,7 @@ for y in range(0,r.shape[0]) :
 		r[y,x,2] = np.abs( cross_power_spectrum[y,x] ) * 100
 
 Image.fromarray(r).save('cross.pgm')
-zoom = 10
+zoom = 20
 pad1 = (cross_power_spectrum.shape[0]*zoom - cross_power_spectrum.shape[0])/2
 pad2 = (cross_power_spectrum.shape[0]*zoom - cross_power_spectrum.shape[0])-pad1
 

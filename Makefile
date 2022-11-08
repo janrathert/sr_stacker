@@ -1,5 +1,10 @@
-all:  simple_stacker read_raw select_star  imgzoom drizzle cg stacks_to_ppm process_flat debayer scale_pgm cg_deconvol
-#  sobel read_raw debayer imgzoom img_diff_matrix find_needle
+all:  simple_stacker read_raw select_star imgzoom drizzle stacks_to_ppm process_flat debayer scale_pgm cg_deconvol
+
+clean:	
+	rm -f *.o
+	rm -v simple_stacker readraw select_star imgzoom drizzle stacks_to_ppm process_flat debayer scale_pgm cg_deconvol
+
+clean:
 
 sobel: sobel.c circle.c gauss_jordan.c image_match.c
 	 gcc -O2 sobel.c circle.c gauss_jordan.c image_match.c -lm -o sobel
@@ -46,8 +51,8 @@ sirt: sirt.c  gauss_distribution.c sphere_transform.c
 drizzle: drizzle.c  gauss_distribution.c sphere_transform.c normalize_double.o Makefile
 	gcc -O2  -Dfilter_size=3 drizzle.c gauss_distribution.c sphere_transform.c normalize_double.o -lm  -o drizzle
 
-cg: sirt.c  gauss_distribution.c dct.c sphere_transform.c
-	gcc -O2 -Dfilter_size=45 -DCG sirt.c gauss_distribution.c dct.c sphere_transform.c -lm  -o cg
+cg: sirt.c  gauss_distribution.c  sphere_transform.c
+	gcc -O2 -Dfilter_size=45 -DCG sirt.c gauss_distribution.c  sphere_transform.c -lm  -o cg
 
 cg_deconvol: cg_deconvol.c  gauss_distribution.c 
 	gcc -O2 cg_deconvol.c gauss_distribution.c -lm  -o cg_deconvol

@@ -796,7 +796,7 @@ int register_images( unsigned short *img , int w, int h , char *fname , int argc
 	  			  write_pgm_ushort( q_sub , cmp_size*cross_power_factor , cmp_size*cross_power_factor , out_fname , 0,0,cmp_size*cross_power_factor,cmp_size*cross_power_factor );
 				  free(q_sub);
 #ifdef CROSS_SPECTRUM
-				  system("../register_images.py needle.pgm sub_image.pgm > offsets.txt");
+				  system("register_images.py needle.pgm sub_image.pgm > offsets.txt");
 				  f = fopen("offsets.txt","r");
 				  if( f ) {
 					char dummy[32];
