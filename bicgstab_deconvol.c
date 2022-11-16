@@ -43,6 +43,15 @@ void matrix_mult_vector_2( float r[2], float A[2][2] , float b0 , float b1 ) // 
 		r[i] = A[i][0]*b0 + A[i][1] * b1 ;
 }
 
+valtype dot(  valtype *a , valtype *b,  int n )
+{
+	valtype sum = 0;
+	int i;
+	for( i=0; i<n; i++)
+		sum += a[i]*b[i];
+	return sum;
+
+}
 
 valtype* read_pgm(  int *w , int *h,  const char *fname )
 {
@@ -100,7 +109,7 @@ valtype* read_pgm(  int *w , int *h,  const char *fname )
 			if( max > 255 )
 				p1 = fgetc(f);
 			unsigned char p2 = fgetc(f);
-			val = ( p1*256 + p2 ) - blacklevel  ;
+			val = ( p1*256 + p2 )   ;
 			if( val < 0 )
 				val = 0;
 			if( max_pixelvalue == 255 )
@@ -399,21 +408,28 @@ int main( int argc , char **argv )
 	int out_img_w;
 	int out_img_h;
 	char out_fname[1024];
+	valtype *X;
 	valtype *b;
 	valtype *r;
+	valtype *r0;
+	valtype *r0_;
 	valtype *z;
 	valtype *p;
-	valtype *q;
-	valtype t = 1;
-	valtype t_ = 1;
+	valtype *s;
+	valtype *H;
+	valtype *v;
+	valtype *t;
 	valtype beta;
+	valtype alpha;
+	valtype rho;
+	valtype rho_;
+	valtype omega;
 	
 	valtype threshold = 0;
 	valtype threshold2 = 0;
 	char channel = 0;
 	int max_loops = 20;
 	int reverse = 0;
-	valtype *X;
 	strcpy(out_fname,"out.pgm");	
 
 	while( argv[1][0] == '-' ) {	
@@ -507,7 +523,8 @@ int main( int argc , char **argv )
 		b = read_pgm(&w,&h,argv[1] );
 	printf("w = %d h = %d\n",w,h);
 	r = malloc(w*h*sizeof(valtype) );
-	z = malloc(w*h*sizeof(valtype) );
+	r0 = malloc(w*h*sizeof(valtype) );
+	r0_ = malloc(w*h*sizeof(valtype) );
 	if( reverse ) {
 		for(y=0;y<h;y++) {
 			for(x=0;x<w;x++) {
@@ -528,112 +545,88 @@ int main( int argc , char **argv )
 	// threshold2 = max_pixelvalue * 0.001;
 	X = malloc(w*h*sizeof(valtype) );
 	p = malloc(w*h*sizeof(valtype) );
-	q = malloc(w*h*sizeof(valtype) );
+	v = malloc(w*h*sizeof(valtype) );
+	s = malloc(w*h*sizeof(valtype) );
+	H = malloc(w*h*sizeof(valtype) );
+	t = malloc(w*h*sizeof(valtype) );
 	valtype *X_ = malloc(w*h*sizeof(valtype) );
-	valtype *X__ = malloc(w*h*sizeof(valtype) );
 	memset( X , 0 , w*h*sizeof(valtype) );
+	memset( p , 0 , w*h*sizeof(valtype) );
+	memset( v , 0 , w*h*sizeof(valtype) );
 
-	printf(" A^T * x = A^T * b\n");
-
-	for(y=0;y<h;y++)
-		for(x=0;x<w;x++) {
-			r[y*w+x] = transposed_forward_projection(  b , w,h,  x , y );
+		 {
+				for(y=0;y<h;y++)
+					for(x=0;x<w;x++) {
+						b[y*w+x] -= blacklevel ;
+					}
+			// r = b - A*X
+			memcpy( r , b , w*h*sizeof(valtype) );
+			{
+				for(y=0;y<h;y++)
+					for(x=0;x<w;x++) {
+						r[y*w+x] -= forward_projection(  X , w,h,  x , y );
+					}
+			}
+			memcpy( r0 , r , w*h*sizeof(valtype) );
+			memcpy( r0_ , r , w*h*sizeof(valtype) );
+			rho = alpha = omega = 1;
 		}
-	memcpy( b , r , w*h*sizeof(valtype) );
+
+
 
 	printf("start loop\n");
 
 	while(loops<=max_loops) {
-		 if( loops == 0  )
-		 {
-			memcpy( r , b , w*h*sizeof(valtype) );
-			// b - A*X
-			{
-				for(y=0;y<h;y++)
-					for(x=0;x<w;x++) {
-						X__[y*w+x] = forward_projection(  X , w,h,  x , y );
-					}
-				for(y=0;y<h;y++)
-					for(x=0;x<w;x++) {
-						r[y*w+x] -= transposed_forward_projection(  X__, w,h,  x , y );
-					}
-			}
-			if( loops == 0 ) {
-				memcpy( p , r , w*h*sizeof(valtype) );
-			}
-		}
-		// solve M*z = r , here M=I
-		{
-			memcpy( z , r , w*h*sizeof(valtype) );
-		}
-		t_ = t;
-		t = 0;
-		{
-			for(y=0;y<h;y++)
-				for(x=0;x<w;x++) {
-					t += r[y*w+x]*z[y*w+x];
-				}
-		}
-		if( loops == 0 )  {
-			{
-				for(y=0;y<h;y++)
-					for(x=0;x<w;x++) {
-						p[y*w+x]=z[y*w+x];
-					}
-			}
-		} else {
-			if( t_ == 0 ) {
-				printf("t_ = 0 !!\n");
-				break;
-			}
-			beta = t/t_;
-			printf("beta = %f t = %f t_ = %f\n",beta,t,t_ );
-			{
-				for(y=0;y<h;y++)
-					for(x=0;x<w;x++) {
-						p[y*w+x]= z[y*w+x] + beta*p[y*w+x];
-					}
-			}
+		rho_ = rho;
+		rho = dot(r0_,r,w*h);
+		printf("beta = \n");
+		beta = ( rho/rho_) * (alpha/omega);
+		printf("p = \n");
+		for(y=0;y<w*h;y++)
+			p[y] = r[y] +  beta*(p[y]-omega*v[y]) ;
 
-		}
-		{
-				for(y=0;y<h;y++)
-					for(x=0;x<w;x++) {
-						X__[y*w+x] = forward_projection(  p , w,h,  x , y );
-					}
-			for(y=0;y<h;y++)
-				for(x=0;x<w;x++) {
-					q[y*w+x] = transposed_forward_projection(  X__ , w,h,  x , y );
-				}
-		}
-		{ valtype tmp = 0;
-		  int j;
-		  valtype a;
-		  valtype max_r = 0;
-		  for(j=0;j<w*h;j++)
-			tmp += p[j]*q[j];
-		  if( tmp == 0 ) {
-			printf("p*q = 0 !!\n");
-			break;
-		  }
-		  a = t/tmp;
-		  printf("a = %f\n",a);
-		  for(j=0;j<w*h;j++) {
-			X[j] += lambda * a * p[j];
-			r[j] -= lambda*a*q[j];
-			if( fabs(r[j]) > max_r )
-				max_r = fabs(r[j] );
-			/*
-			if(X[j]<0) {
-				X[j] = 0;
+		// v = A*p
+		printf("v = \n");
+		for(y=0;y<h;y++)
+			for(x=0;x<w;x++) {
+				v[y*w+x] = forward_projection(  p , w,h,  x , y );
 			}
-			if(X[j]>max_pixelvalue)
-				X[j] = max_pixelvalue;
-			*/
-		  }
-			
-			printf("iteration %d max_r %f\n",loops , max_r );
-		}
+		printf("alpha = \n");
+		alpha = rho / dot(r0_,v,w*h);
+		printf("H = \n");
+
+		for(y=0;y<w*h;y++)
+			H[y] = X[y] + lambda * alpha * p[y];
+		loops++;
+		if( loops > max_loops ) {
+			memcpy( X , H , w*h*sizeof(valtype) );
+			break;
+		} 
+		// if h is accurate enough , then set X = h and quit 
+		printf("s = \n");
+
+		for(y=0;y<w*h;y++)
+			s[y] = r[y] - lambda * alpha * v[y];
+		printf("t = \n");
+		
+		// t = A*s
+		for(y=0;y<h;y++)
+			for(x=0;x<w;x++) {
+				t[y*w+x] = forward_projection(  s , w,h,  x , y );
+			}
+		printf("omega = \n");
+
+		omega = dot(t,s,w*h) / dot(t,t,w*h);
+		printf("X = \n");
+
+		for(y=0;y<w*h;y++)
+			X[y] = H[y] + lambda*omega * s[y];
+		printf("r = \n");
+		
+		for(y=0;y<w*h;y++)
+			r[y] = s[y] - lambda*omega * t[y];
+		
+		
 		loops++;
 	}
 		 {

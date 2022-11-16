@@ -1,4 +1,4 @@
-all:  simple_stacker read_raw select_star imgzoom drizzle stacks_to_ppm process_flat debayer scale_pgm cg_deconvol
+all:  simple_stacker read_raw select_star imgzoom drizzle stacks_to_ppm process_flat debayer scale_pgm cg_deconvol bicgstab_deconvol
 
 clean:	
 	rm -f *.o
@@ -56,3 +56,6 @@ cg: sirt.c  gauss_distribution.c  sphere_transform.c
 
 cg_deconvol: cg_deconvol.c  gauss_distribution.c 
 	gcc -O2 cg_deconvol.c gauss_distribution.c -lm  -o cg_deconvol
+
+bicgstab_deconvol: bicgstab_deconvol.c  gauss_distribution.c 
+	gcc -O2 bicgstab_deconvol.c gauss_distribution.c -lm  -o bicgstab_deconvol
