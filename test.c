@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <math.h>
-// hello
+// hello world
 int main()
 {
 	FILE *f;
