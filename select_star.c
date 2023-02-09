@@ -26,9 +26,9 @@ int x_offset;
 int y_offset;
 
 int no_ui = 0;
-static const char ref_image_name_[1024];
-static const char *ref_image_name;
-static const char *register_in_name;
+static char ref_image_name_[1024];
+static char *ref_image_name;
+static char *register_in_name;
 static SDL_Window* window;
 static SDL_Surface *surface;
 #define CROSS_SPECTRUM
@@ -268,6 +268,43 @@ static float get_pixel( unsigned short *img, int w , int h, float x , float y )
 	v1 = (1-wx) * img[y_*w+x_] + wx*img[y_*w+x_+1];
 	v2 = (1-wx) * img[(y_+1)*w+x_] + wx*img[(y_+1)*w+x_+1];
 	return (1-wy) * v1 + wy*v2;
+}
+
+void remove_gradient( unsigned short *img , int w, int h, int X , int Y )
+{
+	unsigned long long circular_sum[5000];
+	int circular_count[5000];
+	int i;
+	int x,y;
+	unsigned short *p;
+	h -= 10;
+	for( i = 0 ; i< 5000 ; i++ ) {
+		circular_count[i] = 0;
+		circular_sum[i] = 0;
+	}
+	for( y = 0 , p=img ; y<h ; y++ ) 
+		for( x = 0 ; x<w ; x++ , p++ ) {
+			int d = sqrt ( (x-X)*(x-X) + (y-Y)*(y-Y) );
+			circular_count[d]++;
+			circular_sum[d]+= *p;
+			
+		}
+	for( i = 0 ; i< 5000 ; i++ ) {
+		if( circular_count[i] )
+			circular_sum[i] /= circular_count[i];
+	}
+
+	for( y = 0 , p=img ; y<h ; y++ ) 
+		for( x = 0 ; x<w ; x++ , p++ ) {
+			int d = sqrt ( (x-X)*(x-X) + (y-Y)*(y-Y) );
+			// *p = circular_sum[d];
+			if( *p > circular_sum[d] )
+				*p -= circular_sum[d];
+			else
+				*p = 0;
+			
+		}
+
 }
 
 
@@ -1087,6 +1124,12 @@ int main( int argc,char **argv )
 					black_level += o;
 					free(img);
 					img = read_pgm(  &w,&h , argv[1] , &x_offset , &y_offset , black_level );
+					cursor_count = 0;
+					showpic(img,w,h);
+					break;
+				}
+				if ( event.key.keysym.sym == SDLK_g ) {
+					remove_gradient(img,w,h, x_cursor[0],y_cursor[0] );
 					cursor_count = 0;
 					showpic(img,w,h);
 					break;

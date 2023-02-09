@@ -182,7 +182,7 @@ int main(int argc,char **argv)
 	int xo=0;
 	int yo=0;
 	int w_,h_;
-	int black_level = 4100;
+	int black_level = 00;
 	unsigned short *p = read_pgm(&w_,&h_,argv[1] , NULL , NULL );
 	printf("w = %d h = %d\n",w_,h_ );
 	s = malloc(w_*h_*sizeof(int) );
@@ -191,7 +191,7 @@ int main(int argc,char **argv)
 		v = p[i]-black_level;
 		if( v<0 )
 			v = 0;
-		s[i] = asinh( v/100.0 ) * 65535 / 10;
+		s[i] = asinh( v/100.0 ) * 65535 / 15;
 
 	}
 	write_pgm_stack(s,w_,h_,"out.pgm",1 , 0 , 0 );
