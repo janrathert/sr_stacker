@@ -11,7 +11,7 @@ int main()
 	printf(" jupiter diameter pixels %f\n", (jupiter_radius*2) / jupiter_distance * 180  / (6.287/4056) );
 	printf(" moon diameter pixels %f\n", 1700*2 / 300000.0 * 180  / (6.287/4056) );
 	printf(" artificial star diameter pixels %f\n", 1 / 8000.0 * 180  / (6.287/4056) );
-	printf("%f\n",atan(6.287/2/182)*180 * 2  );
+	printf("fov %f\n",atan(6.287/2/182)*180 * 2  );
 	printf("%f\n",atan(6.287/2/182/8)*180 * 2  );
 	printf("%f\n",atan(6.287/4056/2/182)*180 * 2 * 3600  );
 
